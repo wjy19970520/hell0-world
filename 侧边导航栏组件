@@ -1,0 +1,213 @@
+1.TabController.vue
+
+
+<template>
+  <div>
+    <el-tabs v-model="active" @tab-click="onClick" @tab-remove="onRemove">
+      <el-tab-pane
+        v-for="(item, index) in tabs"
+        :label="item.title"
+        :closable="item.closable"
+        :name="item.id"
+        :key="index"
+      >
+        <component
+          :is="item.component"
+          v-bind="item.props"
+          :tab-id="item.id"
+          ref="comp"
+          :lazy="true"
+        />
+      </el-tab-pane>
+    </el-tabs>
+  </div>
+</template>
+<script>
+export default {
+  name: "NavigationController",
+  data() {
+    return {
+      active: null,
+      tabs: []
+    };
+  },
+  props: ["components", "hideSingleTab"],
+  watch: {
+    tabs: function(val) {
+      if (this.hideSingleTab == true) {
+        this.showTabs(val.length > 1);
+        if (val.length == 1) {
+          this.active = this.tabs[0].id;
+        }
+      }
+    }
+  },
+  provide() {
+    var tab = this;
+    return {
+      $tab: {
+        remove(id) {
+          tab.remove(id);
+        },
+        add(tab) {
+          tab.add(tab);
+        }
+      }
+    };
+  },
+  methods: {
+    tabIndex: function(id) {
+      var tabs = this.tabs;
+      for (var i = 0; i < tabs.length; ++i) {
+        if (tabs[i].id == id) {
+          return i;
+        }
+      }
+    },
+    onClick(tab) {
+      var index = tab.index;
+      var tab = this.tabs[index];
+      this.$emit("select", tab);
+      this.$refs.comp[index].$emit("select", tab);
+    },
+    onRemove(tab) {
+      var index = this.tabIndex(tab);
+      this.$emit("remove", this, this.tabs[index]);
+    },
+    remove(id) {
+      var index = this.tabIndex(id);
+      if (index >= 0) {
+        var removed = this.tabs.splice(index, 1);
+        if (this.tabs.length > 0) {
+          if (removed[0].id == this.active) {
+            this.active = this.tabs[index - 1].id;
+          }
+          if (document.activeElement) {
+            document.activeElement.blur();
+          }
+        }
+      }
+    },
+    add(tab) {
+      this.tabs.push(tab);
+      this.active = tab.id;
+    },
+    showTabs(f) {
+      var elem = $(this.$el).find(".el-tabs__header");
+      if (f) {
+        elem.show();
+      } else {
+        elem.hide();
+      }
+    },
+    tabComponent(id) {
+      var index = this.tabIndex(id);
+      if (index >= 0) {
+        return this.$refs.comp[index];
+      }
+    }
+  },
+  created() {
+    var tabs = this.components;
+    if (tabs && tabs.length > 0) {
+      this.tabs = tabs;
+      this.active = tabs[0].id;
+    }
+  }
+};
+</script>
+ 
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scoped>
+</style>
+
+
+
+
+
+2.TabControllerDemo.vue
+
+
+
+
+<template>
+  <div class="yh-page">
+    <div style="margin:8px;">
+      <yh-button @click="addTab">添加</yh-button>
+    </div>
+    <yh-tab-controller
+      :components="tabs"
+      @select="onSelected"
+      @remove="onRemove"
+      :hide-single-tab="true"
+      ref="tc"
+    ></yh-tab-controller>
+  </div>
+</template>
+<script>
+import yhbutton from "../comcompont/Button";
+import tabcontroller from "../comcompont/TabController";
+export default {
+  name: "TabControllerDemo",
+  data() {
+    return {
+      tabs: [
+        {
+          id: "t1",
+          title: "Tab 1",
+          component: {
+            template: "<h3>Tab Demo 1 {{tabId}}</h3>",
+            props: ["tabId"]
+          }
+        },
+        {
+          id: "t2",
+          title: "Tab 2",
+          component: {
+            template: "<h3>Tab Demo 2</h3>"
+          },
+          closable: true
+        }
+      ]
+    };
+  },
+  methods: {
+    addTab() {
+      var n = this.tabs.length + 1;
+      this.$refs.tc.add({
+        id: "Tab " + n,
+        title: "Tab " + n,
+        component: {
+          template:
+            "<div><h3>Tab Demo " +
+            n +
+            " </h3>" +
+            "<button @click='close'>关闭</button></div>",
+          inject: ["$tab"],
+          props: ["tabId"],
+          methods: {
+            close: function() {
+              this.$tab.remove(this.tabId);
+            }
+          }
+        },
+        closable: true
+      });
+    },
+    onSelected(tab) {
+      console.log("Tab " + tab.id + " selected");
+    },
+    onRemove(comp, tab) {
+      comp.remove(tab.id);
+    }
+  },
+  components: {
+    "yh-button": yhbutton,
+    "yh-tab-controller": tabcontroller
+  }
+};
+</script>
+ 
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scope>
+</style>
